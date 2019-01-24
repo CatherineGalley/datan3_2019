@@ -49,6 +49,8 @@ knitr::opts_chunk$set(message = FALSE)
 - Also see http://abessudnov.net/dataanalysis3/rmarkdown.html
 - Alternative: Jupyter Notebook
 - Now let us explore how it works
+- Outputs: word_document; ioslides_presentation; pdf_document 
+
 
 ## Exercise 1
 

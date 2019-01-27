@@ -23,17 +23,50 @@ Find all flights that
 
 Had an arrival delay of two or more hours
 ```{r}
-
+summary(d$arr_delay)
+filter(d, arr_delay >= 120)
 
 ```
+
 Flew to Houston (IAH or HOU)
+```{r}
+filter(d, dest == "IAH" | dest == "HOU")
+```
+
 Were operated by United, American, or Delta
+```{r}
+filter(d, carrier == "UA" | carrier == "AA" | carrier == "DL")
+```
 Departed in summer (July, August, and September)
+```{r}
+filter(d, month %in% c(7, 8, 9))
+ 
+```
 Arrived more than two hours late, but didn’t leave late
+```{r}
+filter(d, arr_delay > 120 & dep_delay <= 0)
+```
 Were delayed by at least an hour, but made up over 30 minutes in flight
+```{r}
+filter(d, dep_delay >= 60 & arr_delay <= 30)
+```
 Departed between midnight and 6am (inclusive)
+```{r}
+filter(d, dep_time %in% c(0000, 0600))
+```
 Another useful dplyr filtering helper is between(). What does it do? Can you use it to simplify the code needed to answer the previous challenges?
+```{r}
+
+```
 
 How many flights have a missing dep_time? What other variables are missing? What might these rows represent?
+```{r}
+length(is.na(d$dep_time))
+summary(d$dep_time)
+summary(d)
+```
+8255 Missing Values = Cancelled Flights.
+Also missing = dep_delay, arr_time, arr_delay, air_time.
 
 Why is NA ^ 0 not missing? Why is NA | TRUE not missing? Why is FALSE & NA not missing? Can you figure out the general rule? (NA * 0 is a tricky counterexample!)
+

@@ -1,0 +1,118 @@
+---
+title: "Lecture 3"
+author: "Catherine Galley"
+date: "31/01/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Plan for today:
+
+1. Test assignment.
+2. The **tidyverse** framework (https://www.tidyverse.org/).
+3. Reading in data with **readr**.
+4. Transforming data with **dplyr**.
+5. Statistical assignment 1: questions.
+6. Homework for next week.
+
+Importing data: read ch.11 from R for Data Science (Data import): https://r4ds.had.co.nz/data-import.html and ch.2 from my website (Read data): http://abessudnov.net/dataanalysis3/readdata.html.
+
+```{r}
+library(tidyverse)
+Data <- read_tsv("/users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_wx/xwavedat.tab")
+```
+
+This is a cross-wave data file with stable characteristics of individuals. See the codebook at https://www.understandingsociety.ac.uk/documentation/mainstage/dataset-documentation/wave/xwave/datafile/xwavedat.
+
+See the dplyr cheetsheet: https://github.com/rstudio/cheatsheets/blob/master/data-transformation.pdf
+
+Exercises.
+
+1. Select the variables for: sex (derived), date of bith (derived), ethnic group (racel_dv). Also keep the cross-wave identifier (pidp) and the sample origin variable (memorig). 
+```{r}
+colnames(Data)
+Data1 <- Data %>% select(pidp, sex_dv, doby_dv, racel_dv, memorig)
+``` 
+2. Filter the data to keep (in new data frames):
+        a) men only.
+        b) people born before 1950 and after 1975.
+        c) men of Pakistani origin born in 1958 or 1982. 
+```{r}
+Data_men <- Data1 %>% filter(sex_dv == 1)
+Data_dob <- Data1 %>% filter(doby_dv > 0 & (doby_dv < 1950 | doby_dv > 1975))
+Data_Pak <- Data1 %>% filter(sex_dv ==1 & racel_dv == 10 & (doby_dv == 1958 | doby_dv == 1982))
+```
+Discuss: logical operators.
+
+3. Recode birth year into cohorts (a new variable): the G.I. Generation (born before 1924), Silent Generation (1925-42), Baby Boomers (1943-65), Generation X (1966-1980), Millenials (1981-99), Generation Z (2000-). (The years are approximate.)
+```{r}
+
+
+Data1 <- Data1 %>% 
+  mutate(generation = case_when(
+  between(doby_dv, 0,1923) ~ "G.I. Generation",
+  between(doby_dv, 1924,1942) ~ "Silent Generation",
+  between(doby_dv, 1943,1965) ~ "Baby Boomers",
+  between(doby_dv, 1966,1980) ~ "Generation X",
+  between(doby_dv, 1981,1999) ~ "Millenials",
+  doby_dv >= 2000 ~ "Generation Z"
+  ))
+
+
+Data1 %>% 
+  pull(generation) %>% 
+  class()
+
+Data1 %>%
+  pull(generation) %>%
+  table()
+  
+```
+4. Recode ethnicity into the following groups: white British, Other White, Indian, Pakistani, other. (This classification doesn't make much sense, but we're doing this as an exercise).
+```{r}
+Data1 %>% 
+  mutate(Ethnicity = case_when(
+                 racel_dv == 1 ~ "White British",
+                 between(racel_dv,2,4) ~ "Other White",
+                 racel_dv == 9 ~ "Indian",
+                 racel_dv == 10 ~ "Pakistani",
+                 between(racel_dv, 5, 8) | racel_dv >= 11 ~ "Other"
+                 ))
+                  
+                   
+                                   
+```
+Discuss: numeric and character vectors (strings), factors. Missing values in R.
+
+5. Count the number of people belonging to different ethnic groups (and produce percentages). 
+```{r}
+Data1 %>% 
+  count(racel_dv) %>%
+  mutate(perc = n / sum(n) *100)
+```
+6. Summarise the proportion of white British by generation.
+```{r}
+Data1 %>% 
+  filter(racel_dv != -99) %>%
+  mutate(WhiteBritish = ifelse(racel_dv == 1, 1, 0)) %>%
+  group_by(generation) %>%
+  summarise(
+    PropWhiteBritish = mean(WhiteBritish, na.rm = T) *100
+  )
+```
+7. Summarise the proportion of women by birth year.
+```{r}
+table(Data1$sex_dv )
+Data1 %>% 
+  filter(sex_dv > 0) %>%
+  mutate(Women = ifelse(sex_dv == 2,1,0))
+  group_by(doby_dv) %>%
+  summarise(PropBirthYear = mean(Women) * 100)
+
+```
+
+

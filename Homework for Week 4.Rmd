@@ -1,0 +1,168 @@
+---
+title: "Homework for Week 4"
+author: "Catherine Galley"
+date: "02/02/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse)
+library(nycflights13)
+flights<- nycflights13::flights
+
+```
+
+## 13.3.1 Exercises
+
+Add a surrogate key to flights.
+
+```{r}
+flights <- flights %>%
+  arrange(year, month, day, sched_dep_time, carrier, flight) %>%
+  mutate(flight_id = row_number()) %>%
+  glimpse()
+head(flights)
+```
+
+Identify the keys in the following datasets
+
+Lahman::Batting,
+```{r}
+install.packages("Lahman")
+library(Lahman)
+batting <- Lahman::Batting
+colnames(batting)
+batting %>%
+  count(playerID, yearID, stint) %>%
+  filter(n>1)
+```
+babynames::babynames
+```{r}
+install.packages("babynames")
+library(babynames)
+bn <- babynames::babynames
+colnames(bn)
+bn %>%
+  count(sex, year, name) %>%
+  filter(nn > 1)
+```
+nasaweather::atmos
+```{r}
+install.packages("nasaweather")
+library(nasaweather)
+atmos <- nasaweather::atmos
+colnames(atmos)
+atmos %>%
+  count(lat, long, year, month) %>%
+  filter (n > 1)
+```
+fueleconomy::vehicles
+```{r}
+install.packages("fueleconomy")
+library(fueleconomy)
+vehicles <- fueleconomy::vehicles
+colnames(vehicles)
+vehicles %>%
+  count(id) %>%
+  filter(n > 1)
+
+```
+ggplot2::diamonds
+```{r}
+diamonds <- ggplot2::diamonds
+colnames(diamonds)
+diamonds %>%
+  count(x, y, z, cut, clarity, carat, color, depth, table, price) %>%
+  filter(n > 1)
+```
+(You might need to install some packages and read some documentation.)
+
+Draw a diagram illustrating the connections between the Batting, Master, and Salaries tables in the Lahman package. Draw another diagram that shows the relationship between Master, Managers, AwardsManagers.
+```{r}
+master <- Lahman::Master
+salaries <- Lahman::Salaries
+colnames(batting)
+colnames(master)
+colnames(salaries)
+
+managers <- Lahman::Managers
+am <- Lahman::AwardsManagers
+colnames(managers)
+colnames(am)
+```
+Batting and Master: Player ID
+Master and Salaries: Player ID
+Salaries and BattingL Player ID, Year ID, LgID, Team ID
+
+Master and Managers: playerID
+Master and AwardsManagers: playerID
+Managers and AwardsManagers: playerID, yearID, lgID
+
+How would you characterise the relationship between the Batting, Pitching, and Fielding tables?
+```{r}
+
+```
+
+
+## Mutating Joins
+Compute the average delay by destination, then join on the airports data frame so you can show the spatial distribution of delays. Here’s an easy way to draw a map of the United States:
+```{r}
+library(maps)
+flights2 <- flights %>% 
+  select(year:day, hour, origin, dest, tailnum, carrier)
+
+airports %>%
+  semi_join(flights, c("faa" = "dest")) %>%
+  ggplot(aes(lon, lat)) +
+  borders("state") +
+  geom_point() +
+  coord_quickmap()
+``` 
+
+
+You might want to use the size or colour of the points to display the average delay for each airport.
+
+Add the location of the origin and destination (i.e. the lat and lon) to flights.
+
+Is there a relationship between the age of a plane and its delays?
+
+What weather conditions make it more likely to see a delay?
+
+What happened on June 13 2013? Display the spatial pattern of delays, and then use Google to cross-reference with the weather.
+
+
+## Reading Data into R - Waves 1 and 2
+```{r}
+rm(list = ls())
+library(data.table)
+UndSoc1 <- fread("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w1/a_indresp.tab")
+UndSoc2 <- fread("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w2/b_indresp.tab")
+
+UndSoc1ed <- fread("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w1/a_indresp.tab",
+                   select = c("pidp", "a_sex", "a_dvage", "a_vote6"))
+
+UndSoc2ed <- fread("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w2/b_indresp.tab",
+                   select = c("pidp", "b_sex", "b_dvage", "b_vote6"))
+rm(UndSoc1, UndSoc2)
+```
+
+## Joining the Two Waves 
+```{r}
+
+inner <- UndSoc1ed %>%
+        inner_join(UndSoc2ed, by = "pidp")
+
+left <- UndSoc1ed %>%
+        left_join(UndSoc2ed, by = "pidp")
+
+right <- UndSoc1ed %>%
+        right_join(UndSoc2ed, by = "pidp")
+
+full <- UndSoc1ed %>%
+        full_join(UndSoc2ed, by = "pidp")
+```

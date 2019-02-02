@@ -14,6 +14,11 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(nycflights13)
 flights<- nycflights13::flights
+airports <- nycflights13::airports
+airlines  <- nycflights13::airlines
+planes <- nycflights13::planes
+weather <- nycflights13::weather
+
 
 ```
 
@@ -116,9 +121,32 @@ library(maps)
 flights2 <- flights %>% 
   select(year:day, hour, origin, dest, tailnum, carrier)
 
-airports %>%
-  semi_join(flights, c("faa" = "dest")) %>%
-  ggplot(aes(lon, lat)) +
+flights2 <- nycflights13::flights
+
+colnames(airports)
+colnames(flights)
+flights <- flights %>%
+  group_by(origin, dest) %>%
+  filter(!is.na(dep_delay), !is.na(arr_delay)) %>%
+  mutate(total_delay = arr_delay - dep_delay) %>%
+  summarise(
+    mean_total_delay = mean(total_delay)
+  )
+summary(flights$mean_total_delay)
+flights_grouped <- flights %>% 
+  mutate(delay_category = case_when(
+  between(mean_total_delay, -30, -20) ~ "20",
+  between(mean_total_delay, -19.9999, -10) ~ "-10",
+  between(mean_total_delay, -9.9999, 1) ~ "-1",
+  between(mean_total_delay, -0.9999, 0.9999) ~ "0",
+  between(mean_total_delay, 1, 10.9999) ~ "1",
+  between(mean_total_delay, 11, 20) ~ "10"
+)) %>%
+  inner_join(airports, by = c(dest = "faa"))
+
+      
+flights_grouped %>%
+  ggplot(aes(lon, lat, colour = mean_total_delay)) +
   borders("state") +
   geom_point() +
   coord_quickmap()
@@ -127,14 +155,142 @@ airports %>%
 
 You might want to use the size or colour of the points to display the average delay for each airport.
 
-Add the location of the origin and destination (i.e. the lat and lon) to flights.
 
+Add the location of the origin and destination (i.e. the lat and lon) to flights.
+```{r}
+flights2 <- nycflights13::flights
+
+airport_locations <- airports %>%
+  select(faa, lat, lon)
+
+flights2 %>%
+  select(year:day, hour, origin, dest) %>%
+  left_join(
+    airport_locations,
+    by = c("origin" = "faa")
+  ) %>%
+  left_join(
+    airport_locations,
+    by = c("dest" = "faa"))
+
+``` 
 Is there a relationship between the age of a plane and its delays?
 
+```{r}
+colnames(planes)
+colnames(flights)
+planes %>%
+  count(tailnum) %>%
+  filter(n > 1)
+
+flights %>%
+  filter(!is.na(dep_time))
+  count(tailnum, year, month, day, origin, dep_delay, arr_delay, dest, dep_time) %>%
+  filter(n > 1)
+
+plane_age <- planes %>%
+  select(tailnum, year)
+
+flight_plane <- flights %>%
+  select(year, month, day, tailnum, origin, dep_delay, arr_delay, dest, dep_time) %>%
+  inner_join(planes, by = tailnum, "tailnum")
+```
+```{r}
+plane_cohorts <- inner_join(flights,
+  select(planes, tailnum, plane_year = year),
+  by = "tailnum"
+) %>%
+  mutate(age = year - plane_year) %>%
+  filter(!is.na(age)) %>%
+  group_by(age) %>%
+  summarise(
+    dep_delay_mean = mean(dep_delay, na.rm = TRUE),
+    dep_delay_sd = sd(dep_delay, na.rm = TRUE),
+    arr_delay_mean = mean(arr_delay, na.rm = TRUE),
+    arr_delay_sd = sd(arr_delay, na.rm = TRUE),
+    n = n()
+  )
+  
+ggplot(plane_cohorts, aes(x = age, y = dep_delay_mean)) +
+  geom_ribbon(
+    mapping = aes(
+      ymin = dep_delay_mean -
+        2 * dep_delay_sd / sqrt(n),
+      ymax = dep_delay_mean +
+        2 * dep_delay_sd / sqrt(n)
+    ),
+    alpha = 0.3
+  ) +
+  geom_point() +
+  scale_x_continuous("Age of plane (years)", breaks = seq(0, 50, by = 10)) +
+  scale_y_continuous("Mean Departure Delay (minutes)")
+``` 
+```{r}
+ggplot(plane_cohorts, aes(x = age, y = arr_delay_mean)) +
+  geom_ribbon(
+    mapping = aes(
+      ymin = arr_delay_mean -
+        2 * arr_delay_sd / sqrt(n),
+      ymax = arr_delay_mean +
+        2 * arr_delay_sd / sqrt(n)
+    ),
+    alpha = 0.3
+  ) +
+  geom_point() +
+  scale_x_continuous("Age of Plane (years)", breaks = seq(0, 50, by = 10)) +
+  scale_y_continuous("Mean Arrival Delay (minutes)")
+```
 What weather conditions make it more likely to see a delay?
+```{r}
+colnames(weather)
+delay_weather <- weather %>%
+  select(origin, year, month, day, temp, wind_speed, wind_gust, precip, pressure, hour) %>%
+  inner_join(flights, 
+             select(year, month, day, dep_delay, arr_delay, origin, hour, dest),
+             by = c("origin" = "origin",
+                    "day" = "day",
+                    "year" = "year",
+                    "month" = "month",
+                    "hour" = "hour"))
+head(delay_weather)
+
+delays <- delay_weather %>%
+  filter(!is.na(dep_delay), !is.na(arr_delay)) %>%
+  group_by(origin, temp, wind_speed, wind_gust, pressure, precip) %>%
+  summarise(
+    mean_dep_delay = mean(dep_delay),
+    mean_arr_delay = mean(arr_delay))
+  
+summary(delays$mean_arr_delay)
+summary(delays$mean_dep_delay)
+
+plot(delays$mean_dep_delay, delays$temp)
+plot(delays$mean_dep_delay, delays$wind_speed)
+plot(delays$mean_dep_delay, delays$wind_gust)
+plot(delays$mean_dep_delay, delays$precip)
+plot(delays$mean_dep_delay, delays$pressure)
+```
 
 What happened on June 13 2013? Display the spatial pattern of delays, and then use Google to cross-reference with the weather.
+```{r}
+install.packages("viridis")
+library(viridis)
 
+
+flights %>% filter( 
+       day == 13,
+       month == 6,
+       year == 2013) %>%
+  group_by(dest) %>%
+  summarise(delay = mean(arr_delay, na.rm = TRUE)) %>%
+  inner_join(airports, by = c("dest" = "faa")) %>%
+  ggplot(aes(y = lat, x = lon, size = delay, colour = delay)) +
+  borders("state") +
+  geom_point() +
+  coord_quickmap() +
+  scale_colour_viridis()
+
+```
 
 ## Reading Data into R - Waves 1 and 2
 ```{r}

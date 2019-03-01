@@ -23,11 +23,152 @@ library(tidyverse)
 ## Exercises
 
 1. Create a balanced panel of all individuals who took part in the Understanding Society from 1 to 4. (Balanced means that you only want to include the individuals who took part in all 4 waves.) Only keep the following variables: person's unique identifier, sex and age. Are there any inconsistencies in the data?
+```{r}
+wave1 <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w1/a_indresp.tab")
+wave2 <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w2/b_indresp.tab")
+wave3 <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w3/c_indresp.tab")
+wave4 <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w4/d_indresp.tab")
 
+wave1 <- wave1 %>%
+  select(pidp, a_sex_dv, a_age_dv)
+
+wave2 <- wave2 %>%
+  select(pidp, b_sex_dv, b_age_dv)
+
+wave3 <- wave3 %>%
+  select(pidp, c_sex_dv, c_age_dv)
+
+wave4 <- wave4 %>%
+  select(pidp, d_sex_dv, d_age_dv)
+
+w1_2 <- wave1 %>%
+  inner_join(wave2, by = c(
+    pidp = "pidp"
+  ))
+
+w1_2_3 <- w1_2 %>%
+  inner_join(wave3, by = c(
+    pidp = "pidp"
+  ))
+
+w_all <- w1_2_3 %>%
+  inner_join(wave4, by = c(
+    pidp = "pidp"
+  ))
+
+# Better Way 
+
+Joined <- wave1 %>%
+  inner_join(wave2, by = "pidp") %>%
+  inner_join(wave3, by = "pidp") %>%
+  inner_join(wave4, by = "pidp")
+
+# Pull Pidp values if sex not consistant 
+Joined %>%
+  mutate(sumSex = a_sex + b_sex + c_sex + d_sex) %>%
+  filter(sumSex != 8 & sumSex != 4) %>%  pull(pidp)
+
+
+Joined %>%
+  count(a_sex_dv, b_sex_dv, c_sex_dv, d_sex_dv)
+
+Joined %>%
+  count(a_age_dv + 1 != b_age_dv | a_age_dv != b_age_dv)
+
+Joined %>%
+  count(c_age_dv + 1 != b_age_dv | c_age_dv != b_age_dv)
+
+ Joined %>%
+  count(c_age_dv + 1 != d_age_dv | c_age_dv != d_age_dv)
+
+
+```
 2. Construct a table with the average number of calls per household by region in waves 1 and 8. You'll need to use the following data tables: household data from wave 1 and 8 (a_gor_dv and h_gor_dv identify region) and call records from waves 1 and 8 (callrec, a_ivtnc and h_ivtnc show the total number of calls).
 
+```{r}
+w1_h <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w1/a_hhresp.tab")
+w8_h <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w8/h_hhresp.tab")
+w1_c <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w1/a_callrec.tab")
+w8_c <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w8/h_callrec.tab")
+colnames(w1_h)
+colnames(w1_c)
+waveone <- w1_h %>%
+  full_join(w1_c, by = "a_hidp" ) %>%
+  select(a_hidp, a_gor_dv, a_ivtnc) %>%
+  group_by(a_gor_dv) %>%
+  summarise(
+    n_calls = mean(a_ivtnc))
+
+waveeight <- w8_h %>%
+  full_join(w8_c, by = "h_hidp" ) %>%
+  select(h_hidp, h_gor_dv, h_ivtnc) %>%
+  group_by(h_gor_dv) %>%
+  summarise(
+    n_calls = mean(h_ivtnc))
+
+both <- waveone %>%
+  full_join(waveeight, by = c(
+    a_hidp = "h_hidp"
+  ))
+
+# Better / Correct Way 
+
+# w1
+w1_h <- w1_h %>% select(a_hidp, a_gor_dv)
+c1 <- w1_c %>%
+  select(a_hidp, a_ivtnc) %>%
+  group_by(a_hidp) %>%
+  summarise(
+    ncalls = mean(a_ivtnc)
+  )
+
+c1 %>%
+  count(a_hidp) %>%
+filter(n > 1)
+
+Joined1 <- w1_h %>%
+  left_join(c1, by = "a_hidp")
+
+ag1 <- Joined1 %>%
+  group_by(a_gor_dv) %>%
+  summarise(meanCall = mean(ncalls, na.rm = T)
+  )
+
+# w8
+w8_h <- w8_h %>% select(h_hidp, h_gor_dv)
+c8 <- w8_c %>%
+  select(h_hidp, h_ivtnc) %>%
+  group_by(h_hidp) %>%
+  summarise(
+    ncalls = mean(h_ivtnc)
+  )
+
+Joined2 <- w8_h %>%
+  left_join(c8, by = "h_hidp")
+
+ag8 <- Joined2 %>%
+  group_by(h_gor_dv) %>%
+  summarise(meanCall = mean(ncalls, na.rm = T)
+  ) %>%
+  filter(h_gor_dv != -9)
+
+Aggr <- ag1 %>%
+  full_join(ag8, by = c(
+            a_gor_dv = "h_gor_dv")) %>%
+  rename("Region" = a_gor_dv) %>%
+  rename("Wave 1" = meanCall.x) %>%
+  rename("Wave 8" = meanCall.y)
+
+# More calls needed in wave 8 than wave 1 to get hold of the subjects 
+
+
+```
 3. 
 a) Construct a table with the average age of women at childbirth in wave 8, the proportion of newborn children who were breastfed and the average newborn child's birthweight in kilograms (for children born between waves 7 and 8).
+```{r}
+
+```
+
 b) Split the table by ethnic group for mothers from the following groups: White British, Indian, Pakistani, Bangladeshi, and African.
 c) Compare the results from a)  with the results from wave 2.
 d) Produce a data table that includes only twins born between waves 7 and 8. How many observations have we got? What do their fathers do for living? How many of them participated in wave 1 of the Understanding Society?

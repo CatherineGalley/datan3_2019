@@ -1,0 +1,117 @@
+---
+title: "Lecture 7"
+author: "Catherine Galley"
+date: "01/03/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
+```
+Plan for today:
+
+1. Machine learning workshop at the RSS.
+2. Exercises on data visualisation.
+3. Homework for next week: data structures.
+
+Exercises:
+
+1. Open the data from the youth questionnaire from wave 8.
+
+```{r}
+library(tidyverse)
+library(bbplot)
+h_youth <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w8/h_youth.tab")
+
+h_youth <- h_youth %>% 
+  select(pidp, h_age_dv, h_sex_dv, h_ypbmi_dv, h_ethn_dv)
+```
+
+
+2. Today we will be working with the variable on BMI (h_ypbmi_dv) and visualise the distribution of BMI by sex, age, and ethnic group.
+
+```{r}
+table(h_youth$h_ypbmi_dv)
+h_youth$h_ypbmi_dv[h_youth$h_ypbmi_dv == -9] <- NA
+
+## or 
+h_youth <- h_youth %>% 
+  mutate(bmi = recode(h_ypbmi_dv, `-9` = NA_real_))
+
+ h_youth %>%
+   ggplot(aes(h_ypbmi_dv)) + 
+   geom_histogram(binwidth = 2, fill = "violetred3") + 
+  # theme_bw() + 
+   bbc_style() +
+   ggtitle("Histogram of BMI") +
+   xlab("BMI") + 
+   ylab("Frequency") + 
+   geom_vline(xintercept = 30) 
+ 
+ ## Graph of BMI for Boys and Girls
+ 
+h_youth %>% pull(h_sex_dv) %>% summary()
+h_youth <- h_youth %>%
+  mutate(sex = ifelse(h_sex_dv == 1, "male",
+                           ifelse(h_sex_dv == 2, "female", NA)))
+
+table(h_youth$sex)
+  ## Facet Histogram
+
+h_youth %>%
+  ggplot(aes(h_ypbmi_dv, fill = sex)) +
+  geom_histogram(binwidth = 2) + 
+  facet_grid(~sex)
+
+  ## Boxplots
+ h_youth %>%
+   ggplot(aes(y=h_ypbmi_dv, x=sex)) +
+   geom_boxplot() +
+   ggtitle("Boxplot of BMI + Sex") +
+   ylab("BMI") + 
+   xlab("Sex") + 
+   geom_hline(yintercept = 30) + coord_flip()
+ 
+  ## Density Charts
+ 
+  h_youth %>%
+   ggplot(aes(h_ypbmi_dv, colour = sex)) + 
+   geom_density() + 
+   theme_classic() + 
+   #bbc_style() +
+   ggtitle("Density Plot of BMI and Sex") +
+   xlab("BMI") + 
+   ylab("Density")
+  
+ h_youth %>%
+   ggplot(aes(h_ypbmi_dv, fill = sex)) + 
+   geom_density(alpha = 0.5) + 
+   theme_classic() + 
+   #bbc_style() +
+   ggtitle("Density Plot of BMI and Sex") +
+   xlab("BMI") + 
+   ylab("Density")
+    
+ h_youth %>%
+   ggplot(aes(h_ypbmi_dv, fill = sex)) + 
+   geom_density(alpha = 0.5) +
+   scale_fill_manual(values = c("pink", "blue")) + 
+   theme_classic() + 
+   #bbc_style() +
+   ggtitle("Density Plot of BMI and Sex") +
+   xlab("BMI") + 
+   ylab("Density")
+ ?scale_fill_manual
+ 
+ ## barplot with means by group 
+ 
+ h_youth %>%
+   group_by(sex) %>%
+   summarise(meanBMI = mean(h_ypbmi_dv, na.rm = T)) %>%
+   ggplot(aes(y = meanBMI, fill = sex)) +
+   geom_bar(aes(x = sex), stat = "identity") 
+
+```

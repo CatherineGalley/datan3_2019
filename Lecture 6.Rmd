@@ -1,0 +1,131 @@
+---
+title: "Lecture 6"
+author: "Catherine Galley"
+date: "21/02/2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
+```
+Plan for today:
+
+- Assignment 2: solution
+- Assignment 3
+- Simple data visualisation 
+- Homework for next week
+
+## Exercises
+
+1. Read the *indresp* file from Wave 8 and keep the following variables: pidp, derived sex and age, ethnic group (h_indresp), government office region (h_gor_dv), and net personal income (h_fimnnet_dv).
+```{r}
+library(tidyverse)
+d <- read_tsv("/Users/catherinegalley/Documents/DataThree/data/UKDA-6614-tab/tab/ukhls_w8/h_indresp.tab")
+d <- d %>%
+  select(pidp, h_sex_dv, h_age_dv, h_ethn_dv, h_gor_dv, h_fimnnet_dv)
+
+d$h_sex_dv[d$h_sex_dv == 0] <- NA
+d$h_gor_dv[d$h_gor_dv == -9] <- NA
+```
+For all charts use ggplot2. You may need to clean and recode variable before visualising.
+
+We will start with univariate distributions.
+
+2. Visualise the distribution of income with a histogram, a density plot and a box plot.
+```{r}
+ggplot(d, aes(h_fimnnet_dv)) + geom_histogram(binwidth = 50) + xlim(c(-100, 15000))
+ggplot(d, aes(h_fimnnet_dv)) + geom_density() + xlim(c(-100, 5000))
+ggplot(d, aes(y = h_fimnnet_dv)) + geom_boxplot() + ylim(1, 5000)
+?geom_boxplot
+  
+```
+3. Visualise the distribution of sex with a bar graph. 
+```{r}
+ggplot(d, aes(h_sex_dv)) + geom_bar(fill = "navyblue")
+```
+Bivariate distributions.
+
+4. Create a bar chart showing mean income by region. Then make a grouped bar chart showing mean income by region for men and women separately.
+```{r}
+d %>%
+  mutate(region = case_when(
+    h_gor_dv == 1 ~ "North East",
+    h_gor_dv == 2 ~ "North West",
+    h_gor_dv == 3 ~ "Yorkshire and the Humber",
+    h_gor_dv == 4 ~ "East Midlands",
+    h_gor_dv == 5 ~ "West Midlands",
+    h_gor_dv == 6 ~ "East of England",
+    h_gor_dv == 7 ~ "London",
+    h_gor_dv == 8 ~ "South East",
+    h_gor_dv == 9 ~ "South West",
+    h_gor_dv == 10 ~ "Wales",
+    h_gor_dv == 11 ~ "Scotland",
+    h_gor_dv == 12 ~ "Northern Ireland"
+  )) %>%
+  group_by(region) %>%
+  summarise(median_income = median(h_fimnnet_dv))  %>%
+  ggplot(aes(x = region, y = median_income)) +
+  geom_bar(stat = "identity", fill = "turquoise2") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+d %>%
+  mutate(region = case_when(
+    h_gor_dv == 1 ~ "North East",
+    h_gor_dv == 2 ~ "North West",
+    h_gor_dv == 3 ~ "Yorkshire and the Humber",
+    h_gor_dv == 4 ~ "East Midlands",
+    h_gor_dv == 5 ~ "West Midlands",
+    h_gor_dv == 6 ~ "East of England",
+    h_gor_dv == 7 ~ "London",
+    h_gor_dv == 8 ~ "South East",
+    h_gor_dv == 9 ~ "South West",
+    h_gor_dv == 10 ~ "Wales",
+    h_gor_dv == 11 ~ "Scotland",
+    h_gor_dv == 12 ~ "Northern Ireland"
+  )) %>%
+  filter(!is.na(h_sex_dv)) %>%
+  filter(!is.na(region)) %>%
+  group_by(region, h_sex_dv) %>%
+  summarise(median_income = median(h_fimnnet_dv))  %>%
+  ggplot(aes(x = region, y = median_income, fill = h_sex_dv)) +
+  geom_bar(stat = "identity", position = "dodge") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#ggplot(d2, aes(x = h_gor_dv, y = mean_income)) + geom_bar(stat = "count")
+
+#ggplot(d, aes(x = h_gor_dv, y = h_fimnnet_dv)) + geom_bar(stat = "identity", colour = "pink")
+
+# ggplot(d, aes(x = h_gor_dv, y = h_fimnnet_dv, fill = as.factor(h_sex_dv))) + geom_bar(stat = "identity", position = "dodge")
+
+```
+5. Make a dot plot showing the same information as above (without splitting by sex). Sort regions in the descending order by mean income.
+```{r}
+d %>%
+  mutate(region = case_when(
+    h_gor_dv == 1 ~ "North East",
+    h_gor_dv == 2 ~ "North West",
+    h_gor_dv == 3 ~ "Yorkshire and the Humber",
+    h_gor_dv == 4 ~ "East Midlands",
+    h_gor_dv == 5 ~ "West Midlands",
+    h_gor_dv == 6 ~ "East of England",
+    h_gor_dv == 7 ~ "London",
+    h_gor_dv == 8 ~ "South East",
+    h_gor_dv == 9 ~ "South West",
+    h_gor_dv == 10 ~ "Wales",
+    h_gor_dv == 11 ~ "Scotland",
+    h_gor_dv == 12 ~ "Northern Ireland"
+  )) %>%
+  group_by(region) %>%
+  summarise(median_income = median(h_fimnnet_dv))  %>%
+  ggplot(aes(x = region, y = median_income)) +
+  geom_dotplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+6. Make a line chart showing mean income by age. Make another chart showing the association for men and women separately.
+```{r}
+
+```
+7. Create a scatterplot showing the association between age and income for randomly selected 100 men in the sample. Now display a smoothing curve on the same graph showing the association between age and income.
+```{r}
+
+```
